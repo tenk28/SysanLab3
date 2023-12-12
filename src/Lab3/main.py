@@ -8,7 +8,6 @@ from solve import Solve
 from text_output import Output
 from graph_output import Graph
 
-
 class UI(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
