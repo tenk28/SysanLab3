@@ -15,6 +15,7 @@ class UI(QMainWindow, Ui_MainWindow):
         self.input_choose.clicked.connect(self.choose_input)
         self.execute_button.clicked.connect(self.execute)
         self.set_default_io()
+        self.showMaximized()
 
     def choose_input(self):
         filename = QFileDialog.getOpenFileName(self, 'Open data file', '.', 'Data file (*.txt)')[0]
