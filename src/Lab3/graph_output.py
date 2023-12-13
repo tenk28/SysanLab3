@@ -2,8 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from solve import Solve
 import matplotlib
-# matplotlib.use('classic')
-plt.style.use("classic")
+matplotlib.use('qtagg')
 
 class Graph:
     def __init__(self, ui, normalized=False):
