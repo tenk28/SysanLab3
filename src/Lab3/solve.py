@@ -1,13 +1,12 @@
-import scipy.sparse.linalg
-
-from api import Options
 import numpy as np
+import scipy.sparse.linalg
+from api import Options
 from scipy import special
 from scipy.optimize import minimize
 
 
 def own_function(x):
-    return 2 * np.sin(x)
+    return np.sin(x)
 
 
 class Solve(Options):
@@ -40,7 +39,7 @@ class Solve(Options):
         input_data = np.loadtxt(self.input, unpack=True, max_rows=self.sample_size)
         left = 0
         right = self.dim_x1
-        x1 = input_data[left:self.dim_x1]
+        x1 = input_data[left : self.dim_x1]
         left = right
         right += self.dim_x2
         x2 = input_data[left:right]
@@ -87,12 +86,28 @@ class Solve(Options):
             raise KeyError(f"The method {self.weights} of obtaining b is not defined!")
 
     def _get_polynomial(self):
+        def _custom(n, x):
+            if n == 0:
+                return np.log(1.5) * np.ones(x.shape)
+            elif n == 1:
+                return 2 * x - 1
+            elif n == 2:
+                return 4 * x**2 - 4 * x - 1
+            elif n == 3:
+                return 8 * x**3 - 12 * x**2 - 6 * x + 5
+            elif n == 4:
+                return 16 * x**4 - 32 * x**3 - 16 * x**2 + 32 * x - 1
+            elif n == 5:
+                return 32 * x**5 - 80 * x**4 - 32 * x**3 + 128 * x**2 - 10 * x - 10
+            else:
+                raise KeyError(f"The degree of polynomial '{n}' is too big!")
+
         if self.polynomial == "P*":
-            return lambda n, x: np.log(1.5) * np.ones(x.shape) if n == 0 else special.eval_sh_legendre(n, x)
+            return lambda n, x: np.log(1.5) * np.ones(x.shape) if n == 0 else special.eval_sh_chebyt(n, x)
         elif self.polynomial == "2P*":
-            return lambda n, x: np.log(1.5) * np.ones(x.shape) if n == 0 else 2*special.eval_sh_legendre(n, x)
+            return lambda n, x: np.log(1.5) * np.ones(x.shape) if n == 0 else special.eval_chebyt(n, x)
         elif self.polynomial == "P":
-            return lambda n, x: np.log(1.5) * np.ones(x.shape) if n == 0 else special.eval_legendre(n, x)
+            return _custom
         else:
             raise KeyError(f"The type of polynomial '{self.polynomial}' is not defined!")
 
@@ -100,12 +115,11 @@ class Solve(Options):
         def _get_polynomial(matrix, max_degree):
             polynomial_matrix = list()
             for matrix_i in matrix:
-                for degree in np.arange(max_degree+1):
+                for degree in np.arange(max_degree + 1):
                     _polynomial = self.get_polynomial(degree, matrix_i)
-                    if (np.min(_polynomial) != np.max(_polynomial) and
-                       (np.min(_polynomial) < 0 or np.max(_polynomial) > 1)):
+                    if np.min(_polynomial) != np.max(_polynomial) and (np.min(_polynomial) < 0 or np.max(_polynomial) > 1):
                         _polynomial = (_polynomial - np.min(_polynomial)) / (np.max(_polynomial) - np.min(_polynomial))
-                    polynomial_matrix.append(2*_polynomial+1)
+                    polynomial_matrix.append(2 * _polynomial + 1)
             return np.array(polynomial_matrix)
 
         x1_polynomial = _get_polynomial(self.x1_normalized, self.x1_degree)
@@ -114,7 +128,6 @@ class Solve(Options):
         return tuple((x1_polynomial, x2_polynomial, x3_polynomial))
 
     def _get_lambda(self):
-
         def _split():
             def _sub_split(b):
                 if self.own_function:
@@ -188,15 +201,15 @@ class Solve(Options):
                 return np.vstack(_psi)
 
             left = 0
-            right = (self.x1_degree+1) * self.dim_x1
+            right = (self.x1_degree + 1) * self.dim_x1
             x1_psi = _x_i_psi(self.x1_degree, self.dim_x1, self.polynomial_matrix[0], lambda_matrix[left:right])
 
             left = right
-            right = left + (self.x2_degree+1) * self.dim_x2
+            right = left + (self.x2_degree + 1) * self.dim_x2
             x2_psi = _x_i_psi(self.x2_degree, self.dim_x2, self.polynomial_matrix[1], lambda_matrix[left:right])
 
             left = right
-            right = left + (self.x3_degree+1) * self.dim_x3
+            right = left + (self.x3_degree + 1) * self.dim_x3
             x3_psi = _x_i_psi(self.x3_degree, self.dim_x3, self.polynomial_matrix[2], lambda_matrix[left:right])
 
             return np.array((x1_psi, x2_psi, x3_psi), dtype=object)
@@ -234,7 +247,7 @@ class Solve(Options):
                 pc_min = np.min(_phi_column)
                 pc_max = np.max(_phi_column)
                 if (pc_min != pc_max) and (pc_min < 0 or pc_max > 0):
-                    _phi_column = (_phi_column-pc_min)/(pc_max-pc_min)
+                    _phi_column = (_phi_column - pc_min) / (pc_max - pc_min)
                 elif pc_min < 0:
                     _phi_column = np.zeros_like(_phi_column)
                 elif pc_max > 1:
@@ -280,8 +293,8 @@ class Solve(Options):
             en_min = np.min(_estimate_normalized)
             en_max = np.max(_estimate_normalized)
             if en_min < 0 or en_max > 1:
-                _estimate_normalized = (_estimate_normalized-en_min)/(en_max-en_min)
-            _estimate_normalized = self.HONESTY*_estimate_normalized + (1-self.HONESTY)*self.y_normalized[i]
+                _estimate_normalized = (_estimate_normalized - en_min) / (en_max - en_min)
+            _estimate_normalized = self.HONESTY * _estimate_normalized + (1 - self.HONESTY) * self.y_normalized[i]
             estimate_normalized.append(_estimate_normalized)
         return np.array(estimate_normalized)
 
@@ -290,20 +303,20 @@ class Solve(Options):
         for i in np.arange(self.dim_y):
             y_max = np.max(self.y[i])
             y_min = np.min(self.y[i])
-            estimate[i] = estimate[i] * (y_max-y_min) + y_min
+            estimate[i] = estimate[i] * (y_max - y_min) + y_min
         return estimate
 
     def _get_error_normalized(self):
         error_normalized = list()
         for i in np.arange(self.dim_y):
-            _error_normalized = np.max(np.abs(self.y_normalized[i]-self.estimate_normalized[i]))
+            _error_normalized = np.max(np.abs(self.y_normalized[i] - self.estimate_normalized[i]))
             error_normalized.append(_error_normalized)
         return np.array(error_normalized)
 
     def _get_error(self):
         error = list()
         for i in np.arange(self.dim_y):
-            _error = np.max(np.abs(self.y[i]-self.estimate[i]))
+            _error = np.max(np.abs(self.y[i] - self.estimate[i]))
             error.append(_error)
         return np.array(error)
 
